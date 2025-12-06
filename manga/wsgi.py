@@ -5,11 +5,18 @@ from fastapi.responses import HTMLResponse, PlainTextResponse
 from pathlib import Path
 import requests
 from urllib.parse import urlparse
+from fastapi.middleware.cors import CORSMiddleware
 
 import cloudscraper
 
 app = FastAPI()
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 # Carrega o index.html da MESMA pasta
 BASE_DIR = Path(__file__).resolve().parent
 HTML_PATH = BASE_DIR / "index.html"
