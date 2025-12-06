@@ -31,6 +31,7 @@ def fetch(url: str):
 
     try:
         r = requests.get(url, headers=headers, timeout=10)
+        print(r)
         return PlainTextResponse(r.text)
     except Exception as e:
         return PlainTextResponse(f"ERROR: {e}", status_code=500)
