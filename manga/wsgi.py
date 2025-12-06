@@ -6,6 +6,8 @@ from pathlib import Path
 import requests
 from urllib.parse import urlparse
 
+import cloudscraper
+
 app = FastAPI()
 
 # Carrega o index.html da MESMA pasta
@@ -21,17 +23,16 @@ def index():
 @app.get("/fetch", response_class=PlainTextResponse)
 def fetch(url: str):
 
-    headers = {
-        "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/120.0 Safari/537.36",
-        "Referer": f"{urlparse(url).scheme}://{urlparse(url).hostname}/"
-    }
+    scraper = cloudscraper.create_scraper(
+        browser={
+            "browser": "chrome",
+            "platform": "android",
+            "mobile": True
+        }
+    )
 
     try:
-        r = requests.get(url, headers=headers, timeout=10)
-        print(r)
-        return PlainTextResponse(r.text)
+        html = scraper.get(url).text
+        return PlainTextResponse(html)
     except Exception as e:
         return PlainTextResponse(f"ERROR: {e}", status_code=500)
