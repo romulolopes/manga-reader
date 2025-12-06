@@ -33,6 +33,7 @@ def fetch(url: str):
 
     try:
         html = scraper.get(url).text
+        print(html)
         return PlainTextResponse(html)
     except Exception as e:
         return PlainTextResponse(f"ERROR: {e}", status_code=500)
