@@ -56,7 +56,7 @@
 <body>
 
 <div id="topbar">
-  <input id="urlBox" type="text" placeholder="Cole a URL do capítulo" />
+  <input id="urlBox" type="text" value="https://mugiwarasoficial.com/manga/solo-leveling-ragnarok/capitulo-1/" />
   <button id="loadBtn">Carregar</button>
   <button id="fsBtn">Tela cheia</button>
 </div>
@@ -71,15 +71,19 @@
 var images = [];
 var index = 0;
 var fullscreen = false;
-
 function extractImagesFromHTML(html, baseURL) {
   var tmp = document.createElement("div");
   tmp.innerHTML = html;
 
-  var list = tmp.getElementsByTagName("img");
+  var list = tmp.querySelectorAll("img.wp-manga-chapter-img");
   var arr = [];
 
-  for (var i=0; i < list.length; i++) {
+  // resolver URL base
+  var base = document.createElement("a");
+  base.href = baseURL;
+
+  for (var i = 0; i < list.length; i++) {
+
     var src =
       list[i].getAttribute("data-src") ||
       list[i].getAttribute("data-lazy-src") ||
@@ -88,17 +92,32 @@ function extractImagesFromHTML(html, baseURL) {
 
     if (!src) continue;
 
-    if (src.indexOf("//") === 0) {
-      src = "https:" + src;
-    } else if (src.indexOf("http") !== 0) {
-      var a = document.createElement("a");
-      a.href = baseURL;
-      src = a.protocol + "//" + a.host + (src.charAt(0)==="/" ? src : "/" + src);
+    // remover espaços extras
+    src = src.trim();
+
+    // Caso 1 — URL já completa (http ou https)
+    if (src.startsWith("http://") || src.startsWith("https://")) {
+      arr.push(src);
+      continue;
     }
 
-    arr.push(src);
+    // Caso 2 — começa com "//" (URL protocolo relativo)
+    if (src.startsWith("//")) {
+      arr.push("https:" + src);
+      continue;
+    }
+
+    // Caso 3 — caminho relativo (/folder/img.jpg)
+    if (src.startsWith("/")) {
+      arr.push(base.protocol + "//" + base.host + src);
+      continue;
+    }
+
+    // Caso 4 — caminho relativo sem "/"
+    arr.push(base.protocol + "//" + base.host + "/" + src);
   }
 
+  console.log(arr);
   return arr;
 }
 
