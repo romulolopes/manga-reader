@@ -1,189 +1,36 @@
-# manga/wsgi.py
-
+import os
+import requests
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
+from urllib.parse import urlparse
+from pathlib import Path
 
 app = FastAPI()
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+HTML_PATH = BASE_DIR / "templates" / "index.html"
+
+
 @app.get("/", response_class=HTMLResponse)
 def index():
+    return HTMLResponse(HTML_PATH.read_text(encoding="utf-8"))
 
-    html = """<!doctype html>
-<html>
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
 
-<!-- Modo App (Tela cheia real no iPad4 via "Adicionar à tela de início") -->
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
+@app.get("/fetch", response_class=PlainTextResponse)
+def fetch(url: str):
 
-<title>Leitor de Imagens</title>
-
-<style>
-  html,body {
-    margin:0; padding:0; background:#111; color:white;
-    font-family:Helvetica,Arial;
-    height:100%; overflow:hidden;
-  }
-
-  #topbar {
-    background:#222; padding:10px; text-align:center;
-  }
-
-  #urlBox {
-    width:80%; padding:6px; font-size:16px;
-  }
-
-  #loadBtn {
-    padding:6px 12px; font-size:16px;
-  }
-
-  #container {
-    display:flex; align-items:center; justify-content:center;
-    height:calc(100vh - 60px);
-    position:relative;
-  }
-
-  #viewer {
-    max-width:90%;
-    max-height:80vh;
-  }
-
-  /* Zonas invisíveis para tocar (esquerda/dir) */
-  .zone {
-    position:absolute; top:0; height:100%; width:40%; cursor:pointer;
-  }
-  #leftZone { left:0; }
-  #rightZone { right:0; }
-
-  #fsBtn {
-    position:fixed; top:10px; right:10px; z-index:999;
-    padding:6px 10px;
-  }
-</style>
-</head>
-<body>
-
-<div id="topbar">
-  <input id="urlBox" type="text" placeholder="Cole a URL do capítulo" />
-  <button id="loadBtn">Carregar</button>
-  <button id="fsBtn">Tela cheia</button>
-</div>
-
-<div id="container">
-  <img id="viewer" src="" alt="Aguardando…" />
-  <div id="leftZone" class="zone"></div>
-  <div id="rightZone" class="zone"></div>
-</div>
-
-<script type="text/javascript">
-// 100% compatível com iPad 4 (sem ES6)
-var images = [];
-var index = 0;
-var fullscreen = false;
-
-function extractImagesFromHTML(html, baseURL) {
-  // Safari antigo não suporta DOMParser com text/html
-  var tmp = document.createElement("div");
-  tmp.innerHTML = html;
-
-  var list = tmp.getElementsByTagName("img");
-  var arr = [];
-
-  for (var i=0; i < list.length; i++) {
-    var src =
-      list[i].getAttribute("data-src") ||
-      list[i].getAttribute("data-lazy-src") ||
-      list[i].getAttribute("data-original") ||
-      list[i].getAttribute("src");
-
-    if (!src) continue;
-
-    // Ajustar URLs relativas
-    if (src.indexOf("//") === 0) {
-      src = "https:" + src;
-    } else if (src.indexOf("http") !== 0) {
-      var a = document.createElement("a");
-      a.href = baseURL;
-      src = a.protocol + "//" + a.host + (src.charAt(0)==="/" ? src : "/" + src);
+    # Fake browser headers (sem isso o site bloqueia)
+    headers = {
+        "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+            " AppleWebKit/537.36 (KHTML, like Gecko)"
+            " Chrome/120.0 Safari/537.36",
+        "Referer": f"{urlparse(url).scheme}://{urlparse(url).hostname}/"
     }
 
-    arr.push(src);
-  }
-
-  return arr;
-}
-
-function loadChapter() {
-  var url = document.getElementById("urlBox").value;
-
-  if (!url) {
-    alert("Informe uma URL de capítulo!");
-    return;
-  }
-
-  var xhr = new XMLHttpRequest();
-  xhr.open("GET", url, true);
-
-  xhr.onreadystatechange = function() {
-    if (xhr.readyState === 4) {
-      if (xhr.status >= 200 && xhr.status < 300) {
-
-        images = extractImagesFromHTML(xhr.responseText, url);
-
-        if (images.length > 0) {
-          index = 0;
-          document.getElementById("viewer").src = images[0];
-        } else {
-          document.getElementById("viewer").alt = "Nenhuma imagem encontrada.";
-        }
-
-      } else {
-        document.getElementById("viewer").alt = "Erro ao carregar.";
-      }
-    }
-  };
-
-  xhr.send(null);
-}
-
-function showIndex(i) {
-  if (!images || images.length === 0) return;
-  index = (i + images.length) % images.length;
-  document.getElementById("viewer").src = images[index];
-}
-
-function nextImg() { showIndex(index + 1); }
-function prevImg() { showIndex(index - 1); }
-
-document.getElementById("leftZone").onclick = prevImg;
-document.getElementById("rightZone").onclick = nextImg;
-
-document.getElementById("loadBtn").onclick = loadChapter;
-
-// Tela cheia fake (iPad 4 não suporta Fullscreen API)
-document.getElementById("fsBtn").onclick = function() {
-  var viewer = document.getElementById("viewer");
-  if (!fullscreen) {
-    fullscreen = true;
-    this.innerHTML = "Sair";
-    viewer.style.maxWidth = "100%";
-    viewer.style.maxHeight = "100vh";
-    viewer.style.width = "100%";
-    viewer.style.height = "100vh";
-  } else {
-    fullscreen = false;
-    this.innerHTML = "Tela cheia";
-    viewer.style.maxWidth = "90%";
-    viewer.style.maxHeight = "80vh";
-    viewer.style.width = "auto";
-    viewer.style.height = "auto";
-  }
-};
-</script>
-
-</body>
-</html>
-"""
-    return HTMLResponse(html)
+    try:
+        r = requests.get(url, headers=headers, timeout=10)
+        r.raise_for_status()
+        return PlainTextResponse(r.text)
+    except Exception as e:
+        return PlainTextResponse(f"ERROR: {e}", status_code=500)
