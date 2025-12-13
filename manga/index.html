@@ -171,7 +171,34 @@ function showIndex(i) {
   index = (i + images.length) % images.length;
   document.getElementById("viewer").src = images[index];
 }
-function nextImg() { showIndex(index + 1); }
+
+function nextImg() {
+  if (!images.length) return;
+
+  // Se ainda NÃO é a última imagem
+  if (index < images.length - 1) {
+    showIndex(index + 1);
+    return;
+  }
+
+  // 👇 CHEGOU NA ÚLTIMA IMAGEM
+  // Incrementa o capítulo
+  let chapterInput = document.getElementById("chapterNum");
+  let current = parseInt(chapterInput.value, 10) || 0;
+  chapterInput.value = current + 1;
+
+  // Gera nova URL
+  let b = document.getElementById("baseUrl").value.trim();
+  if (!b.endsWith("/")) b += "/";
+  let finalURL = b + "capitulo-" + chapterInput.value;
+
+  document.getElementById("urlBox").value = finalURL;
+
+  // Recarrega o novo capítulo
+  loadChapter();
+}
+
+
 function prevImg() { showIndex(index - 1); }
 
 document.getElementById("leftZone").onclick = prevImg;
