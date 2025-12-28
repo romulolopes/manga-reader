@@ -62,6 +62,7 @@
     position:fixed; top:10px; right:10px; z-index:1000;
     padding:6px 10px; background:#333; color:white; display:none;
   }
+  #myMangasList div.selected { background:#333; color:#fff }
 </style>
 </head>
 <body>
@@ -72,7 +73,7 @@
 
   <input id="baseUrl" type="text" placeholder="URL base" value="https://mugiwarasoficial.com/manga/one-punch-man/">
   <input id="chapterNum" type="number" placeholder="Capítulo" value="213">
-  <input id="mangaName" type="text" placeholder="Nome do Manga (ex: One Punch Man)">
+  <input id="mangaName" type="text" placeholder="Selecione um manga da lista" readonly>
 
   <div style="display:flex; gap:8px; width:80%; justify-content:center;">
     <button id="saveMangaBtn">Salvar Manga</button>
@@ -164,27 +165,32 @@ function loadMyMangas(){
       var el = document.createElement('div');
       el.style.padding='6px'; el.style.borderBottom='1px solid #333'; el.style.cursor='pointer';
       el.textContent = (m.name || m.url);
-      el.onclick = function(){
-        document.getElementById('mangaName').value = m.name || '';
-        document.getElementById('baseUrl').value = m.url || '';
-        document.getElementById('chapterNum').value = m.chapter || '';
-        savedIndexOnLoad = m.index != null ? m.index : null;
+        el.onclick = function(){
+          // remove seleção anterior
+          var children = box.children;
+          for(var i=0;i<children.length;i++){ children[i].classList.remove('selected') }
+          this.classList.add('selected');
 
-        // prepara URL de capítulo (se já for URL completa, usa ela)
-        var u = m.url || '';
-        if (!u.includes('capitulo-')) {
-          var b = document.getElementById('baseUrl').value.trim(); if (!b.endsWith('/')) b += '/';
-          u = b + 'capitulo-' + (m.chapter || '1');
-        }
-        document.getElementById('urlBox').value = u;
+          document.getElementById('mangaName').value = m.name || '';
+          document.getElementById('baseUrl').value = m.url || '';
+          document.getElementById('chapterNum').value = m.chapter || '';
+          savedIndexOnLoad = m.index != null ? m.index : null;
 
-        // iniciar leitura no ponto salvo
-        document.getElementById('configMenu').style.display = 'none';
-        document.getElementById('container').style.display = 'flex';
-        document.getElementById('fsBtn').style.display = 'block';
-        saveState();
-        loadChapter();
-      };
+          // prepara URL de capítulo (se já for URL completa, usa ela)
+          var u = m.url || '';
+          if (!u.includes('capitulo-')) {
+            var b = document.getElementById('baseUrl').value.trim(); if (!b.endsWith('/')) b += '/';
+            u = b + 'capitulo-' + (m.chapter || '1');
+          }
+          document.getElementById('urlBox').value = u;
+
+          // iniciar leitura no ponto salvo
+          document.getElementById('configMenu').style.display = 'none';
+          document.getElementById('container').style.display = 'flex';
+          document.getElementById('fsBtn').style.display = 'block';
+          saveState();
+          loadChapter();
+        };
       box.appendChild(el);
     });
   }).catch(e=>{});
@@ -380,6 +386,7 @@ document.getElementById('saveMangaBtn').onclick = function(){
   var token = localStorage.getItem('manga_token');
   if(!token){ var btn = document.getElementById('authOpenBtn'); if(btn) btn.click(); else alert('login required'); return }
   var name = document.getElementById('mangaName').value.trim();
+  if(!name){ alert('Selecione um manga da lista antes de salvar.'); return }
   var base = document.getElementById('baseUrl').value.trim(); if(!base.endsWith('/')) base += '/';
   var chapter = document.getElementById('chapterNum').value.trim();
   var url = base + 'capitulo-' + chapter;
