@@ -26,16 +26,29 @@
   #configMenu input {
     margin:8px 0; padding:8px; width:80%; font-size:18px;
   }
-  #startBtn {
-    padding:10px 18px; font-size:18px; margin-top:10px;
+  
+  /* Container para os botões do menu */
+  .menu-actions {
+    display: flex;
+    gap: 15px;
+    margin-top: 15px;
   }
 
-  /* Botão reabrir menu */
+  #startBtn, #cancelBtn {
+    padding:10px 18px; font-size:18px; 
+    border: none; cursor: pointer; color: white;
+    border-radius: 4px;
+  }
+
+  #startBtn { background: #007bff; } /* Azul */
+  #cancelBtn { background: #555; }   /* Cinza */
+
+  /* Botão reabrir menu (canto inferior) */
   #menuBtn {
     position:fixed; left:10px; bottom:10px;
     padding:10px 14px; background:#444; 
     color:white; cursor:pointer; z-index:1000;
-    border-radius:8px;
+    border-radius:8px; border:none;
   }
 
   #container {
@@ -57,7 +70,7 @@
 
   #fsBtn {
     position:fixed; top:10px; right:10px; z-index:1000;
-    padding:6px 10px; background:#333; color:white; display:none;
+    padding:6px 10px; background:#333; color:white; display:none; border:none; border-radius:4px;
   }
 </style>
 </head>
@@ -69,8 +82,12 @@
   <input id="baseUrl" type="text" placeholder="URL base" value="https://mugiwarasoficial.com/manga/manga-one-piece/">
   <input id="chapterNum" type="number" placeholder="Capítulo" value="1168">
 
-  <button id="startBtn">Iniciar Leitura</button>
-  <p style="font-size:12px; color:#aaa; margin-top:15px;">Progresso salvo automaticamente</p>
+  <div class="menu-actions">
+      <button id="startBtn">Carregar / Iniciar</button>
+      <button id="cancelBtn">Cancelar</button>
+  </div>
+
+  <p id="saveStatus" style="font-size:12px; color:#aaa; margin-top:15px;"></p>
 </div>
 
 <input id="urlBox" type="text" style="display:none">
@@ -89,13 +106,24 @@
 var images = [];
 var index = 0;
 var fullscreen = false;
-// Variável para armazenar a página salva temporariamente
 var pendingPageIndex = 0; 
 
 /* ------------------------------
-      PERSISTÊNCIA DE DADOS (NOVO)
+      VERIFICAÇÃO DE LOGIN
+--------------------------------*/
+function verificarLogin() {
+    var token = localStorage.getItem("token") || 
+                localStorage.getItem("access_token") || 
+                localStorage.getItem("user");
+    return (token !== null && token !== "");
+}
+
+/* ------------------------------
+      PERSISTÊNCIA DE DADOS
 --------------------------------*/
 function saveState() {
+    //if (!verificarLogin()) return;
+
     var b = document.getElementById("baseUrl").value;
     var c = document.getElementById("chapterNum").value;
     
@@ -105,6 +133,13 @@ function saveState() {
 }
 
 function loadState() {
+    //if (!verificarLogin()) {
+    //    document.getElementById("saveStatus").innerText = "Login necessário para salvar progresso.";
+    //    return;
+    //}
+
+    document.getElementById("saveStatus").innerText = "Progresso sincronizado.";
+
     var savedBase = localStorage.getItem("manga_baseUrl");
     var savedChap = localStorage.getItem("manga_chapterNum");
     var savedPage = localStorage.getItem("manga_pageIndex");
@@ -112,11 +147,9 @@ function loadState() {
     if (savedBase) document.getElementById("baseUrl").value = savedBase;
     if (savedChap) document.getElementById("chapterNum").value = savedChap;
     
-    // Armazena a página para usar quando as imagens carregarem
     if (savedPage) pendingPageIndex = parseInt(savedPage, 10);
 }
 
-// Carregar dados salvos assim que abrir o site
 window.addEventListener('DOMContentLoaded', (event) => {
     loadState();
 });
@@ -127,38 +160,20 @@ window.addEventListener('DOMContentLoaded', (event) => {
 function extractImagesFromHTML(html, baseURL) {
   var tmp = document.createElement("div");
   tmp.innerHTML = html;
-
   var list = tmp.querySelectorAll("img.wp-manga-chapter-img");
   var arr = [];
-
   var base = document.createElement("a");
   base.href = baseURL;
 
   for (var i = 0; i < list.length; i++) {
-    var src =
-      list[i].getAttribute("data-src") ||
-      list[i].getAttribute("data-lazy-src") ||
-      list[i].getAttribute("data-original") ||
-      list[i].getAttribute("src");
-
+    var src = list[i].getAttribute("data-src") || list[i].getAttribute("src");
     if (!src) continue;
-
     src = src.trim();
-
-    if (src.startsWith("http")) {
-      arr.push(src); continue;
-    }
-    if (src.startsWith("//")) {
-      arr.push("https:" + src); continue;
-    }
-    if (src.startsWith("/")) {
-      arr.push(base.protocol + "//" + base.host + src);
-      continue;
-    }
-
+    if (src.startsWith("http")) { arr.push(src); continue; }
+    if (src.startsWith("//")) { arr.push("https:" + src); continue; }
+    if (src.startsWith("/")) { arr.push(base.protocol + "//" + base.host + src); continue; }
     arr.push(base.protocol + "//" + base.host + "/" + src);
   }
-
   return arr;
 }
 
@@ -167,39 +182,34 @@ function extractImagesFromHTML(html, baseURL) {
 --------------------------------*/
 function loadChapter() {
   var url = document.getElementById("urlBox").value;
-
   var xhr = new XMLHttpRequest();
   xhr.open("GET", "/fetch?url=" + encodeURIComponent(url), true);
 
   xhr.onreadystatechange = function () {
     if (xhr.readyState === 4) {
       if (xhr.status >= 200 && xhr.status < 300) {
-
         var html = xhr.responseText;
         images = extractImagesFromHTML(html, url);
 
         if (images.length > 0) {
-          // Lógica para recuperar a página exata ou começar do zero
           if (pendingPageIndex > 0 && pendingPageIndex < images.length) {
               index = pendingPageIndex;
-              pendingPageIndex = 0; // Resetar para os próximos capítulos começarem do 0
+              pendingPageIndex = 0; 
           } else {
               index = 0;
           }
-
           document.getElementById("viewer").src = images[index];
-          saveState(); // Salva estado atualizado
+          
+          saveState(); 
 
         } else {
           document.getElementById("viewer").alt = "Nenhuma imagem encontrada.";
         }
-
       } else {
         document.getElementById("viewer").alt = "Erro ao carregar.";
       }
     }
   };
-
   xhr.send();
 }
 
@@ -208,44 +218,32 @@ function showIndex(i) {
   if (!images.length) return;
   index = (i + images.length) % images.length;
   document.getElementById("viewer").src = images[index];
-  
-  // Salva a cada troca de página
   saveState();
 }
 
 function nextImg() {
   if (!images.length) return;
-
-  // Se ainda NÃO é a última imagem
   if (index < images.length - 1) {
     showIndex(index + 1);
     return;
   }
 
-  // 👇 CHEGOU NA ÚLTIMA IMAGEM
-  // Incrementa o capítulo
+  // Próximo Capítulo
   let chapterInput = document.getElementById("chapterNum");
   let current = parseInt(chapterInput.value, 10) || 0;
   chapterInput.value = current + 1;
 
-  // Gera nova URL
   let b = document.getElementById("baseUrl").value.trim();
   if (!b.endsWith("/")) b += "/";
   let finalURL = b + "capitulo-" + chapterInput.value;
 
   document.getElementById("urlBox").value = finalURL;
   
-  // Reseta o índice pendente para garantir que o novo capítulo comece da pág 0
   pendingPageIndex = 0;
   index = 0; 
-  
-  // Salva o novo capítulo (com página 0)
   saveState();
-
-  // Recarrega o novo capítulo
   loadChapter();
 }
-
 
 function prevImg() { showIndex(index - 1); }
 
@@ -273,31 +271,37 @@ document.getElementById("fsBtn").onclick = function() {
 };
 
 /* -----------------------------------------
-        MENU → GERA URL → SOME
+   BOTÕES DO MENU
 ------------------------------------------*/
-document.getElementById("startBtn").onclick = function() {
 
+// 1. INICIAR / CARREGAR
+document.getElementById("startBtn").onclick = function() {
   let b = document.getElementById("baseUrl").value.trim();
   let c = document.getElementById("chapterNum").value.trim();
-
   if (!b.endsWith("/")) b += "/";
   let finalURL = b +'capitulo-'+ c ;
 
   document.getElementById("urlBox").value = finalURL;
-
   document.getElementById("configMenu").style.display = "none";
   document.getElementById("container").style.display = "flex";
   document.getElementById("fsBtn").style.display = "block";
 
-  // Salva ao clicar em iniciar
   saveState();
-
   loadChapter();
 };
 
-/* -----------------------------
-    REABRIR O MENU
-------------------------------*/
+// 2. CANCELAR / FECHAR (Novo)
+document.getElementById("cancelBtn").onclick = function() {
+  // Apenas esconde o menu, mantendo o estado atual do leitor
+  document.getElementById("configMenu").style.display = "none";
+  
+  // Se já houver imagens carregadas, mostra o container
+  if (images.length > 0) {
+      document.getElementById("container").style.display = "flex";
+      document.getElementById("fsBtn").style.display = "block";
+  }
+};
+
 document.getElementById("menuBtn").onclick = function () {
   document.getElementById("configMenu").style.display = "flex";
 };
