@@ -26,6 +26,11 @@
   #configMenu input {
     margin:8px 0; padding:8px; width:80%; font-size:18px;
   }
+  #closeConfigBtn {
+    position:absolute; top:12px; right:12px;
+    padding:6px 10px; background:#333; color:white; cursor:pointer;
+    border-radius:8px; z-index:1001;
+  }
   #startBtn {
     padding:10px 18px; font-size:18px; margin-top:10px;
   }
@@ -66,9 +71,10 @@
 <!-- MENU DE CONFIGURAÇÃO -->
 <div id="configMenu">
   <h2>Configuração</h2>
+  <button id="closeConfigBtn">Fechar</button>
 
-  <input id="baseUrl" type="text" placeholder="URL base" value="https://mugiwarasoficial.com/manga/manga-one-piece/">
-  <input id="chapterNum" type="number" placeholder="Capítulo" value="1168">
+  <input id="baseUrl" type="text" placeholder="URL base" value="https://mugiwarasoficial.com/manga/one-punch-man/">
+  <input id="chapterNum" type="number" placeholder="Capítulo" value="213">
 
   <button id="startBtn">Iniciar Leitura</button>
 </div>
@@ -249,6 +255,11 @@ document.getElementById("startBtn").onclick = function() {
 ------------------------------*/
 document.getElementById("menuBtn").onclick = function () {
   document.getElementById("configMenu").style.display = "flex";
+};
+
+/* Botão fechar no menu de configuração */
+document.getElementById("closeConfigBtn").onclick = function () {
+  document.getElementById("configMenu").style.display = "none";
 };
 </script>
 
