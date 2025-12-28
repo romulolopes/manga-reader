@@ -72,6 +72,12 @@
 
   <input id="baseUrl" type="text" placeholder="URL base" value="https://mugiwarasoficial.com/manga/one-punch-man/">
   <input id="chapterNum" type="number" placeholder="Capítulo" value="213">
+  <input id="mangaName" type="text" placeholder="Nome do Manga (ex: One Punch Man)">
+
+  <div style="display:flex; gap:8px; width:80%; justify-content:center;">
+    <button id="saveMangaBtn">Salvar Manga</button>
+    <button id="listMangasBtn">Meus Mangas</button>
+  </div>
 
   <button id="startBtn">Iniciar Leitura</button>
   <button id="closeConfigBtn">Fechar</button>
@@ -283,6 +289,14 @@ document.getElementById("fsBtn").onclick = function() {
        MENU → GERA URL → SOME
 ------------------------------------------*/
 document.getElementById("startBtn").onclick = function() {
+  // exige token (usuário logado)
+  var token = localStorage.getItem('manga_token');
+  if (!token) {
+    // tenta abrir o modal de login criado por auth.js
+    var btn = document.getElementById('authOpenBtn');
+    if (btn) btn.click(); else alert('Faça login antes de usar o leitor.');
+    return;
+  }
 
   let b = document.getElementById("baseUrl").value.trim();
   let c = document.getElementById("chapterNum").value.trim();
@@ -306,6 +320,51 @@ document.getElementById("startBtn").onclick = function() {
 
   saveState();
   loadChapter();
+};
+
+// Salvar manga para o usuário conectado
+document.getElementById('saveMangaBtn').onclick = function(){
+  var token = localStorage.getItem('manga_token');
+  if(!token){ var btn = document.getElementById('authOpenBtn'); if(btn) btn.click(); else alert('login required'); return }
+  var name = document.getElementById('mangaName').value.trim();
+  var base = document.getElementById('baseUrl').value.trim(); if(!base.endsWith('/')) base += '/';
+  var chapter = document.getElementById('chapterNum').value.trim();
+  var url = base + 'capitulo-' + chapter;
+  fetch('/manga/save?token=' + encodeURIComponent(token), {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({name: name, url: url, chapter: chapter, index: index})
+  }).then(r=>r.json()).then(j=>{
+    if(j.ok) alert('Salvo'); else alert(j.detail||'erro');
+  }).catch(e=>alert('erro'));
+};
+
+// Listar e carregar mangas do usuário
+document.getElementById('listMangasBtn').onclick = function(){
+  var token = localStorage.getItem('manga_token');
+  if(!token){ var btn = document.getElementById('authOpenBtn'); if(btn) btn.click(); else alert('login required'); return }
+  fetch('/manga/list?token=' + encodeURIComponent(token)).then(r=>r.json()).then(j=>{
+    if(!j.ok){ alert(j.detail||'erro'); return }
+    var list = j.mangas || [];
+    if(!list.length){ alert('Nenhum manga salvo'); return }
+    var names = list.map(x=>x.name).join('\n');
+    var pick = prompt('Escolha o nome para carregar:\n' + names);
+    if(!pick) return;
+    fetch('/manga/get?name=' + encodeURIComponent(pick) + '&token=' + encodeURIComponent(token)).then(r=>{
+      if(!r.ok){ alert('não encontrado'); return }
+      return r.json();
+    }).then(res=>{
+      if(!res) return;
+      if(res.ok && res.manga){
+        document.getElementById('mangaName').value = res.manga.name || '';
+        // extrai base e capítulo se possível
+        var u = res.manga.url || '';
+        document.getElementById('baseUrl').value = u;
+        document.getElementById('chapterNum').value = res.manga.chapter || '';
+        // set index for load
+        savedIndexOnLoad = res.manga.index != null ? res.manga.index : null;
+      }
+    }).catch(e=>alert('erro'))
+  }).catch(e=>alert('erro'));
 };
 
 /* -----------------------------

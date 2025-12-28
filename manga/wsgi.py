@@ -23,6 +23,7 @@ app.add_middleware(
 BASE_DIR = Path(__file__).resolve().parent
 HTML_PATH = BASE_DIR / "index.html"
 USERS_PATH = BASE_DIR / "users.json"
+MANGAS_PATH = BASE_DIR / "mangas.json"
 
 
 def _hash_password(password: str) -> str:
@@ -40,6 +41,29 @@ def load_users() -> dict:
 
 def save_users(data: dict):
     USERS_PATH.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+
+def load_mangas() -> dict:
+    if not MANGAS_PATH.exists():
+        return {}
+    try:
+        return json.loads(MANGAS_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def save_mangas(data: dict):
+    MANGAS_PATH.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+
+def username_from_token(token: str):
+    if not token:
+        return None
+    users = load_users()
+    for username, data in users.items():
+        if data.get("token") == token:
+            return username
+    return None
 
 
 class UserIn(BaseModel):
@@ -112,3 +136,56 @@ def me(token: str = ""):
         if data.get("token") == token:
             return {"username": username}
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid token")
+
+
+@app.post("/manga/save")
+def save_manga(payload: dict, token: str = ""):
+    username = username_from_token(token)
+    if not username:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid token")
+
+    name = payload.get('name')
+    url = payload.get('url')
+    chapter = payload.get('chapter')
+    index = payload.get('index')
+
+    if not name or not url:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="name and url required")
+
+    mangas = load_mangas()
+    user_list = mangas.get(username, [])
+
+    # replace if exists by name
+    found = False
+    for m in user_list:
+        if m.get('name') == name:
+            m.update({'url': url, 'chapter': chapter, 'index': index})
+            found = True
+            break
+    if not found:
+        user_list.append({'name': name, 'url': url, 'chapter': chapter, 'index': index})
+
+    mangas[username] = user_list
+    save_mangas(mangas)
+    return JSONResponse({'ok': True, 'msg': 'saved'})
+
+
+@app.get("/manga/list")
+def list_manga(token: str = ""):
+    username = username_from_token(token)
+    if not username:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid token")
+    mangas = load_mangas()
+    return JSONResponse({'ok': True, 'mangas': mangas.get(username, [])})
+
+
+@app.get("/manga/get")
+def get_manga(name: str, token: str = ""):
+    username = username_from_token(token)
+    if not username:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid token")
+    mangas = load_mangas()
+    for m in mangas.get(username, []):
+        if m.get('name') == name:
+            return JSONResponse({'ok': True, 'manga': m})
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='not found')
