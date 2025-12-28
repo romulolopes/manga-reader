@@ -63,7 +63,6 @@
 </head>
 <body>
 
-<!-- MENU DE CONFIGURAÇÃO -->
 <div id="configMenu">
   <h2>Configuração</h2>
 
@@ -71,15 +70,14 @@
   <input id="chapterNum" type="number" placeholder="Capítulo" value="1168">
 
   <button id="startBtn">Iniciar Leitura</button>
+  <p style="font-size:12px; color:#aaa; margin-top:15px;">Progresso salvo automaticamente</p>
 </div>
 
-<!-- Input oculto usado internamente -->
 <input id="urlBox" type="text" style="display:none">
 
 <button id="fsBtn">Tela cheia</button>
 <button id="menuBtn">Configuração</button>
 
-<!-- VISOR -->
 <div id="container">
   <img id="viewer" src="" alt="Aguardando…" />
   <div id="leftZone" class="zone"></div>
@@ -91,6 +89,37 @@
 var images = [];
 var index = 0;
 var fullscreen = false;
+// Variável para armazenar a página salva temporariamente
+var pendingPageIndex = 0; 
+
+/* ------------------------------
+      PERSISTÊNCIA DE DADOS (NOVO)
+--------------------------------*/
+function saveState() {
+    var b = document.getElementById("baseUrl").value;
+    var c = document.getElementById("chapterNum").value;
+    
+    localStorage.setItem("manga_baseUrl", b);
+    localStorage.setItem("manga_chapterNum", c);
+    localStorage.setItem("manga_pageIndex", index);
+}
+
+function loadState() {
+    var savedBase = localStorage.getItem("manga_baseUrl");
+    var savedChap = localStorage.getItem("manga_chapterNum");
+    var savedPage = localStorage.getItem("manga_pageIndex");
+
+    if (savedBase) document.getElementById("baseUrl").value = savedBase;
+    if (savedChap) document.getElementById("chapterNum").value = savedChap;
+    
+    // Armazena a página para usar quando as imagens carregarem
+    if (savedPage) pendingPageIndex = parseInt(savedPage, 10);
+}
+
+// Carregar dados salvos assim que abrir o site
+window.addEventListener('DOMContentLoaded', (event) => {
+    loadState();
+});
 
 /* ------------------------------
       FUNÇÃO DE EXTRAÇÃO
@@ -150,8 +179,17 @@ function loadChapter() {
         images = extractImagesFromHTML(html, url);
 
         if (images.length > 0) {
-          index = 0;
-          document.getElementById("viewer").src = images[0];
+          // Lógica para recuperar a página exata ou começar do zero
+          if (pendingPageIndex > 0 && pendingPageIndex < images.length) {
+              index = pendingPageIndex;
+              pendingPageIndex = 0; // Resetar para os próximos capítulos começarem do 0
+          } else {
+              index = 0;
+          }
+
+          document.getElementById("viewer").src = images[index];
+          saveState(); // Salva estado atualizado
+
         } else {
           document.getElementById("viewer").alt = "Nenhuma imagem encontrada.";
         }
@@ -170,6 +208,9 @@ function showIndex(i) {
   if (!images.length) return;
   index = (i + images.length) % images.length;
   document.getElementById("viewer").src = images[index];
+  
+  // Salva a cada troca de página
+  saveState();
 }
 
 function nextImg() {
@@ -193,6 +234,13 @@ function nextImg() {
   let finalURL = b + "capitulo-" + chapterInput.value;
 
   document.getElementById("urlBox").value = finalURL;
+  
+  // Reseta o índice pendente para garantir que o novo capítulo comece da pág 0
+  pendingPageIndex = 0;
+  index = 0; 
+  
+  // Salva o novo capítulo (com página 0)
+  saveState();
 
   // Recarrega o novo capítulo
   loadChapter();
@@ -225,7 +273,7 @@ document.getElementById("fsBtn").onclick = function() {
 };
 
 /* -----------------------------------------
-       MENU → GERA URL → SOME
+        MENU → GERA URL → SOME
 ------------------------------------------*/
 document.getElementById("startBtn").onclick = function() {
 
@@ -240,6 +288,9 @@ document.getElementById("startBtn").onclick = function() {
   document.getElementById("configMenu").style.display = "none";
   document.getElementById("container").style.display = "flex";
   document.getElementById("fsBtn").style.display = "block";
+
+  // Salva ao clicar em iniciar
+  saveState();
 
   loadChapter();
 };
