@@ -79,6 +79,8 @@
     <button id="listMangasBtn">Meus Mangas</button>
   </div>
 
+  <div id="myMangasList" style="width:80%; max-height:200px; overflow:auto; margin-top:8px; border:1px solid #222; display:block"></div>
+
   <button id="startBtn">Iniciar Leitura</button>
   <button id="closeConfigBtn">Fechar</button>
 
@@ -167,6 +169,21 @@ function loadMyMangas(){
         document.getElementById('baseUrl').value = m.url || '';
         document.getElementById('chapterNum').value = m.chapter || '';
         savedIndexOnLoad = m.index != null ? m.index : null;
+
+        // prepara URL de capítulo (se já for URL completa, usa ela)
+        var u = m.url || '';
+        if (!u.includes('capitulo-')) {
+          var b = document.getElementById('baseUrl').value.trim(); if (!b.endsWith('/')) b += '/';
+          u = b + 'capitulo-' + (m.chapter || '1');
+        }
+        document.getElementById('urlBox').value = u;
+
+        // iniciar leitura no ponto salvo
+        document.getElementById('configMenu').style.display = 'none';
+        document.getElementById('container').style.display = 'flex';
+        document.getElementById('fsBtn').style.display = 'block';
+        saveState();
+        loadChapter();
       };
       box.appendChild(el);
     });
@@ -374,33 +391,12 @@ document.getElementById('saveMangaBtn').onclick = function(){
   }).catch(e=>alert('erro'));
 };
 
-// Listar e carregar mangas do usuário
+// Mostrar lista clicável de mangas salvos no menu
 document.getElementById('listMangasBtn').onclick = function(){
   var token = localStorage.getItem('manga_token');
   if(!token){ var btn = document.getElementById('authOpenBtn'); if(btn) btn.click(); else alert('login required'); return }
-  fetch('/manga/list?token=' + encodeURIComponent(token)).then(r=>r.json()).then(j=>{
-    if(!j.ok){ alert(j.detail||'erro'); return }
-    var list = j.mangas || [];
-    if(!list.length){ alert('Nenhum manga salvo'); return }
-    var names = list.map(x=>x.name).join('\n');
-    var pick = prompt('Escolha o nome para carregar:\n' + names);
-    if(!pick) return;
-    fetch('/manga/get?name=' + encodeURIComponent(pick) + '&token=' + encodeURIComponent(token)).then(r=>{
-      if(!r.ok){ alert('não encontrado'); return }
-      return r.json();
-    }).then(res=>{
-      if(!res) return;
-      if(res.ok && res.manga){
-        document.getElementById('mangaName').value = res.manga.name || '';
-        // extrai base e capítulo se possível
-        var u = res.manga.url || '';
-        document.getElementById('baseUrl').value = u;
-        document.getElementById('chapterNum').value = res.manga.chapter || '';
-        // set index for load
-        savedIndexOnLoad = res.manga.index != null ? res.manga.index : null;
-      }
-    }).catch(e=>alert('erro'))
-  }).catch(e=>alert('erro'));
+  document.getElementById('configMenu').style.display = 'flex';
+  loadMyMangas();
 };
 
 /* -----------------------------
