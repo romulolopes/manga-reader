@@ -384,7 +384,7 @@ document.getElementById("startBtn").onclick = function() {
 // Salvar manga para o usuário conectado
 document.getElementById('saveMangaBtn').onclick = function(){
   var token = localStorage.getItem('manga_token');
-  if(!token){ var btn = document.getElementById('authOpenBtn'); if(btn) btn.click(); else alert('login required'); return }
+  if(!token){  return }
   var name = document.getElementById('mangaName').value.trim();
   if(!name){ alert('Selecione um manga da lista antes de salvar.'); return }
   var base = document.getElementById('baseUrl').value.trim(); if(!base.endsWith('/')) base += '/';
@@ -401,7 +401,7 @@ document.getElementById('saveMangaBtn').onclick = function(){
 // Mostrar lista clicável de mangas salvos no menu
 document.getElementById('listMangasBtn').onclick = function(){
   var token = localStorage.getItem('manga_token');
-  if(!token){ var btn = document.getElementById('authOpenBtn'); if(btn) btn.click(); else alert('login required'); return }
+  if(!token){ return }
   document.getElementById('configMenu').style.display = 'flex';
   loadMyMangas();
 };
