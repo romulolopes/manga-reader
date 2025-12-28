@@ -24,6 +24,9 @@ BASE_DIR = Path(__file__).resolve().parent
 HTML_PATH = BASE_DIR / "index.html"
 USERS_PATH = BASE_DIR / "users.json"
 MANGAS_PATH = BASE_DIR / "mangas.json"
+LOGIN_PATH = BASE_DIR / "login.html"
+AUTH_JS_PATH = BASE_DIR / "auth.js"
+AUTH_CSS_PATH = BASE_DIR / "auth.css"
 
 
 def _hash_password(password: str) -> str:
@@ -136,6 +139,27 @@ def me(token: str = ""):
         if data.get("token") == token:
             return {"username": username}
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid token")
+
+
+@app.get("/login", response_class=HTMLResponse)
+def login_page():
+    if LOGIN_PATH.exists():
+        return HTMLResponse(LOGIN_PATH.read_text(encoding="utf-8"))
+    return HTMLResponse("<html><body><h3>Login page missing</h3></body></html>")
+
+
+@app.get("/auth.js")
+def serve_auth_js():
+    if AUTH_JS_PATH.exists():
+        return PlainTextResponse(AUTH_JS_PATH.read_text(encoding="utf-8"), media_type="application/javascript")
+    return PlainTextResponse("", status_code=404)
+
+
+@app.get("/auth.css")
+def serve_auth_css():
+    if AUTH_CSS_PATH.exists():
+        return PlainTextResponse(AUTH_CSS_PATH.read_text(encoding="utf-8"), media_type="text/css")
+    return PlainTextResponse("", status_code=404)
 
 
 @app.post("/manga/save")

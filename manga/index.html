@@ -137,6 +137,42 @@ function getStoredState() {
   }
 })();
 
+// Se não logado, redireciona para /login
+(function(){
+  var token = localStorage.getItem('manga_token');
+  if(!token){
+    // allow the login page itself to load without redirect loops
+    if(!location.pathname.startsWith('/login')) location.href = '/login';
+  } else {
+    // carrega a lista de mangas para exibir na configuração
+    try{ loadMyMangas(); }catch(e){}
+  }
+})();
+
+function loadMyMangas(){
+  var token = localStorage.getItem('manga_token');
+  if(!token) return;
+  fetch('/manga/list?token=' + encodeURIComponent(token)).then(r=>r.json()).then(j=>{
+    if(!j.ok) return;
+    var list = j.mangas || [];
+    var box = document.getElementById('myMangasList');
+    if(!box) return;
+    box.innerHTML = '';
+    list.forEach(function(m){
+      var el = document.createElement('div');
+      el.style.padding='6px'; el.style.borderBottom='1px solid #333'; el.style.cursor='pointer';
+      el.textContent = (m.name || m.url);
+      el.onclick = function(){
+        document.getElementById('mangaName').value = m.name || '';
+        document.getElementById('baseUrl').value = m.url || '';
+        document.getElementById('chapterNum').value = m.chapter || '';
+        savedIndexOnLoad = m.index != null ? m.index : null;
+      };
+      box.appendChild(el);
+    });
+  }).catch(e=>{});
+}
+
 /* ------------------------------
       FUNÇÃO DE EXTRAÇÃO
 --------------------------------*/
