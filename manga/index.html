@@ -96,6 +96,40 @@
 var images = [];
 var index = 0;
 var fullscreen = false;
+var storageKey = 'mangaReaderState';
+var savedIndexOnLoad = null;
+
+function saveState() {
+  try {
+    var state = {
+      baseUrl: document.getElementById("baseUrl").value.trim(),
+      chapterNum: document.getElementById("chapterNum").value.trim(),
+      index: index
+    };
+    localStorage.setItem(storageKey, JSON.stringify(state));
+  } catch (e) { }
+}
+
+function getStoredState() {
+  try {
+    var raw = localStorage.getItem(storageKey);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) { return null; }
+}
+
+// Carrega estado ao abrir a página (preenche inputs e prepara índice)
+(function(){
+  var s = getStoredState();
+  if (s) {
+    if (s.baseUrl) document.getElementById("baseUrl").value = s.baseUrl;
+    if (s.chapterNum) document.getElementById("chapterNum").value = s.chapterNum;
+    var b = document.getElementById("baseUrl").value.trim();
+    if (b && !b.endsWith("/")) b += "/";
+    document.getElementById("urlBox").value = b + 'capitulo-' + document.getElementById("chapterNum").value.trim();
+    savedIndexOnLoad = s.index != null ? s.index : null;
+  }
+})();
 
 /* ------------------------------
       FUNÇÃO DE EXTRAÇÃO
@@ -155,8 +189,16 @@ function loadChapter() {
         images = extractImagesFromHTML(html, url);
 
         if (images.length > 0) {
-          index = 0;
-          document.getElementById("viewer").src = images[0];
+          // Se existe um índice salvo para este capítulo, usa ele
+          if (savedIndexOnLoad !== null && !isNaN(savedIndexOnLoad)) {
+            var s = parseInt(savedIndexOnLoad, 10) || 0;
+            if (s >= 0 && s < images.length) index = s; else index = 0;
+            savedIndexOnLoad = null;
+          } else {
+            index = 0;
+          }
+          document.getElementById("viewer").src = images[index];
+          saveState();
         } else {
           document.getElementById("viewer").alt = "Nenhuma imagem encontrada.";
         }
@@ -175,6 +217,7 @@ function showIndex(i) {
   if (!images.length) return;
   index = (i + images.length) % images.length;
   document.getElementById("viewer").src = images[index];
+  saveState();
 }
 
 function nextImg() {
@@ -200,6 +243,9 @@ function nextImg() {
   document.getElementById("urlBox").value = finalURL;
 
   // Recarrega o novo capítulo
+  // reset index for new chapter and persist chapter change
+  index = 0;
+  saveState();
   loadChapter();
 }
 
@@ -208,6 +254,10 @@ function prevImg() { showIndex(index - 1); }
 
 document.getElementById("leftZone").onclick = prevImg;
 document.getElementById("rightZone").onclick = nextImg;
+
+// Salva quando os inputs mudam
+document.getElementById("baseUrl").addEventListener('change', saveState);
+document.getElementById("chapterNum").addEventListener('change', saveState);
 
 /* Fullscreen */
 document.getElementById("fsBtn").onclick = function() {
@@ -246,6 +296,15 @@ document.getElementById("startBtn").onclick = function() {
   document.getElementById("container").style.display = "flex";
   document.getElementById("fsBtn").style.display = "block";
 
+  // Se existe estado salvo e corresponde ao capítulo atual, restaura índice
+  var stored = getStoredState();
+  if (stored && stored.baseUrl === document.getElementById("baseUrl").value.trim() && String(stored.chapterNum) === String(document.getElementById("chapterNum").value.trim())) {
+    savedIndexOnLoad = stored.index != null ? stored.index : null;
+  } else {
+    savedIndexOnLoad = null;
+  }
+
+  saveState();
   loadChapter();
 };
 
